@@ -1,6 +1,6 @@
 # This is a **forked** Repo of the CrispGame Library found here [CrispGameLib].
 
-## My Games can be found on the Pages for this site or denoted below:
+## My Games can be found on the Pages for this repo or linked below:
 
 ### 1. StudioOneButton a.k.a [Night Grazer]
 ### 2. 
