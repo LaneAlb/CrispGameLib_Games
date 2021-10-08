@@ -1,4 +1,4 @@
-# <p align =center> This is a **forked** Repo of the CrispGame Library found here [CrispGameLib]. </p>
+# <p align =center> This is a **forked** Repo of the CrispGame Library found at [CrispGameLib]. </p>
 
 ## My Games can be found on the Pages for this repo or linked below:
 
