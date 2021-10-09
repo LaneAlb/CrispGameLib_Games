@@ -3,8 +3,9 @@
 ## My Games can be found on the Pages for this repo or linked below:
 
 ### 1. StudioOneButton a.k.a [Night Grazer]
-### 2. 
+### 2. [Flip Tiles]
 ### 3. 
 
 [CrispGameLib]: https://github.com/abagames/crisp-game-lib
 [Night Grazer]: https://lanealb-portfolio.github.io/CrispGameLib_Games/?StudioOneButton
+[Flip Tiles]: https://lanealb-portfolio.github.io/CrispGameLib_Games/?fliptiles
