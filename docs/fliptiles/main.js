@@ -32,7 +32,7 @@ options = {
  * @type { Block [] }
  */
 let row1, row2, row3; // Pos and width
-let tiles; // 
+let tiles;
 let cursor;
 let clicked;
 
@@ -106,6 +106,8 @@ function update() {
     currBlock.lit = !currBlock.lit;
     lightAdjacent(clicked[0], clicked[1]);
   }
+  // end condition here
+
 }
 // find adjacent blocks and light or unlight them
 function lightAdjacent(x, y){
@@ -142,20 +144,11 @@ function findBlock(pointer){
   else { 
     clicked[0] = 1;  }
 }
-// IGNORE BELOW FOR NOW
-// hopefully I dont have to build an entire function around grabbing specific tile locales but
-// it would be put here
 /*
-function pointBetween(point, tiles){
-  tiles.forEach(row => {
-    row.forEach( block => {
-      var errorMin = block.pos.x ;
-      var errorMax = ;
-      if(point.x within block.pos +- block.width){
-        console.log("block " + );
-      }
-    })
-  })
-  //i think you just redraw as you see the correct indices;
-}
+  2 ideas. 
+   - End Game on 1 solve, try to get "quickest time". 60 ticks == 1 point lowest pointS is the goal
+   - Randomize img to solve and award points for completion + reset board
+
+  100% SOLVABLE IN OUR GAME: T, L,  Z but sideways, I,  smol Z, Y, all on?, Border
+
 */
