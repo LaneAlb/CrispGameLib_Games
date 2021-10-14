@@ -35,7 +35,12 @@ let row1, row2, row3; // Pos and width
 let tiles;
 let cursor;
 let clicked;
-
+// curerntly lit array (just to keep easy tracking)
+let currentlyLit = [
+  [0, 0, 0], 
+  [0, 0, 0], 
+  [0, 0, 0]
+]
 // Solution Array
 // 0 0 0
 // 0 0 0
@@ -117,8 +122,11 @@ function update() {
     //console.log(tiles[clicked[0]][clicked[1]].pos);
     let currBlock = tiles[clicked[0]][clicked[1]];
     currBlock.lit = !currBlock.lit;
+    // update the currenlyLit array and light adjacent blocks
+    updateCurrent(clicked[0], clicked[1], currBlock.lit);
     lightAdjacent(clicked[0], clicked[1]);
-    console.log(problems[0]);
+    console.log(currentlyLit);
+    console.log(problems);
   }
   // end condition here
 
@@ -129,10 +137,29 @@ function lightAdjacent(x, y){
    let xMax = x + 1;
    let yMin = y - 1;
    let yMax = y + 1;
-   if(xMin >= 0) { tiles[xMin][y].lit = !tiles[xMin][y].lit;}
-   if(xMax <= 2) { tiles[xMax][y].lit = !tiles[xMax][y].lit;}
-   if(yMin >= 0) { tiles[x][yMin].lit = !tiles[x][yMin].lit;}
-   if(yMax <= 2) { tiles[x][yMax].lit = !tiles[x][yMax].lit;}
+   if(xMin >= 0) { 
+    tiles[xMin][y].lit = !tiles[xMin][y].lit;
+    updateCurrent(xMin, y, tiles[xMin][y].lit);
+  }
+   if(xMax <= 2) { 
+    tiles[xMax][y].lit = !tiles[xMax][y].lit; 
+    updateCurrent(xMax, y, tiles[xMax][y].lit);
+  }
+   if(yMin >= 0) { 
+    tiles[x][yMin].lit = !tiles[x][yMin].lit; 
+    updateCurrent(x, yMin, tiles[x][yMin].lit);
+  }
+   if(yMax <= 2) { 
+    tiles[x][yMax].lit = !tiles[x][yMax].lit; 
+    updateCurrent(x, yMax, tiles[x][yMax].lit);
+  }
+}
+
+// update the current light array to check against solutions
+// status is the current LIGHT state of the block, index is which block
+function updateCurrent(col, row, status){
+  if(status) currentlyLit[col][row] = 1;
+  else currentlyLit[col][row] = 0;
 }
 // according to console.log in Init
 // COLUMN 1 === x: 20  to x: 20  + box.width ===> 70 with box width == 50
@@ -159,10 +186,11 @@ function findBlock(pointer){
     clicked[0] = 1;  }
 }
 /*
-  2 ideas. 
-   - End Game on 1 solve, try to get "quickest time". 60 ticks == 1 point lowest pointS is the goal
-   - Randomize img to solve and award points for completion + reset board
+  CURRENT END GAME IDEA:
+    have 2 arrays; first -> "current" is the currently lit blocks lights on denoted by a 1
+    2nd -> "problems" is an array of "arrays" which hold each solution that we want in the same manner as current
+      pick a random index from problems on load and check currentlyLit against that to see if it was solved!
+      -- if we want instead of end we keep score and end when they solve X puzzles
 
   100% SOLVABLE IN OUR GAME: T, L,  Z but sideways, I,  smol Z, Y, all on?, Border
-
 */
