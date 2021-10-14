@@ -4,8 +4,9 @@
 
 ### 1. StudioOneButton a.k.a [Night Grazer]
 ### 2. [Flip Tiles]
-### 3. 
+### 3. [Curling]
 
 [CrispGameLib]: https://github.com/abagames/crisp-game-lib
 [Night Grazer]: https://lanealb-portfolio.github.io/CrispGameLib_Games/?StudioOneButton
 [Flip Tiles]: https://lanealb-portfolio.github.io/CrispGameLib_Games/?fliptiles
+[Curling]: https://lanealb-portfolio.github.io/CrispGameLib_Games/?curling
