@@ -36,6 +36,19 @@ let tiles;
 let cursor;
 let clicked;
 
+// Solution Array
+// 0 0 0
+// 0 0 0
+// 0 0 0
+let problems = [ 
+  [ 1, 1, 1,
+    1, 1, 1,
+    1, 1, 1,
+  ], 
+];
+
+
+
 function update() {
   if (!ticks) {
     // RECT's have pos relative to upper left corner
@@ -105,6 +118,7 @@ function update() {
     let currBlock = tiles[clicked[0]][clicked[1]];
     currBlock.lit = !currBlock.lit;
     lightAdjacent(clicked[0], clicked[1]);
+    console.log(problems[0]);
   }
   // end condition here
 
