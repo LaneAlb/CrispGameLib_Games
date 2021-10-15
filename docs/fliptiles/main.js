@@ -5,20 +5,39 @@ description = `
 Match the image shown!
 `;
 
-characters = [];
+characters = [
+`
+llllll
+llllll
+llllll
+llllll
+llllll
+llllll
+`,
+`
+cccccc
+cccccc
+cccccc
+cccccc
+cccccc
+cccccc
+`
+];
 
 // Game and Runtime Options
 const G = {
   WIDTH: 200,
   HEIGHT: 200,
   Box_Width: 50,
+  RESETS: 3,
+  LEVELS: 3,
 };
 
 options = {
   viewSize: {x: G.WIDTH, y: G.HEIGHT},
   isReplayEnabled:true,
-  //isPlayingBgm: true,
-  //seed: 400,
+  isPlayingBgm: true,
+  seed: 25,
   theme: "shapeDark",
 };
 /**
@@ -35,6 +54,9 @@ let row1, row2, row3; // Pos and width
 let tiles;
 let cursor;
 let clicked;
+let level; // random integer
+let lights1, lights2, lights3;
+let resets;
 // curerntly lit array (just to keep easy tracking)
 let currentlyLit = [
   [0, 0, 0], 
@@ -46,16 +68,28 @@ let currentlyLit = [
 // 0 0 0
 // 0 0 0
 let problems = [ 
-  [ 1, 1, 1,
-    1, 1, 1,
-    1, 1, 1,
-  ], 
+  [ [0, 1, 0],
+    [1, 1, 1], // CROSS
+    [0, 1, 0],
+  ],
+  [ [1, 0, 1],
+    [1, 1, 1], // letter H
+    [1, 0, 1]
+  ],
+  [ [1, 1, 1],
+    [0, 1, 0], // letter T
+    [0, 1, 0]
+  ],
+  [ [1, 1, 1],
+    [1, 0, 1], // border
+    [1, 1, 1]
+  ],
 ];
-
-
 
 function update() {
   if (!ticks) {
+    level = 0;
+    resets = G.RESETS;
     // RECT's have pos relative to upper left corner
     // SOOOO
     // to "center" 3 rects we take 
@@ -63,28 +97,22 @@ function update() {
     // Y === relative to center is just playing with values to get a nice offset
     // in our case 1.5 to get row1, + or - 0.5 for row2 and row3
     // below math has 0.4 and 0.7 for row2 and row3 to give a space in between tiles
-    console.log("row1");
     row1 = times(3, (i) =>{
       var mod = (i % 3); // 1
       var X = ( G.Box_Width * (mod*1.1) ) + G.Box_Width*0.4;
       var Y = G.HEIGHT*0.5 - G.Box_Width*1.5;
-      console.log(vec(X, Y));
       return { pos: vec(X, Y), width: G.Box_Width, lit: false };
     });
-    console.log("row2");
     row2 = times(3, (i) =>{
       var mod = (i % 3);
       var X = (G.Box_Width* (mod*1.1)) + G.Box_Width*0.4;
       var Y = G.HEIGHT*0.5 - G.Box_Width*0.4;
-      console.log(vec(X, Y));
       return { pos: vec(X, Y), width: G.Box_Width, lit: false };
     });
-    console.log("row3");
     row3 = times(3, (i) =>{
       var mod = (i % 3);
       var X = (G.Box_Width* (mod*1.1)) + G.Box_Width*0.4;
       var Y = G.HEIGHT*0.5 + G.Box_Width*0.7;
-      console.log(vec(X, Y));
       return { pos: vec(X, Y), width: G.Box_Width, lit: false };
     });
     tiles = [ row1, row2, row3 ];
@@ -107,6 +135,47 @@ function update() {
     });
   });
 
+  // draw reset button and button text
+  if(resets > 0){
+    color("light_purple");
+    rect(80, 3, 40, 15);
+    color("black");
+    text("RESET", 88, 10);
+  } else {
+    color("light_red");
+    rect(80, 3, 40, 15);
+    color("black");
+    text("GIVEUP", 85, 10);
+  }
+
+  // end condition here
+  lights1 = currentlyLit[0].every((val, index) => val === problems[level][0][index]);
+  lights2 = currentlyLit[1].every((val, index) => val === problems[level][1][index]);
+  lights3 = currentlyLit[2].every((val, index) => val === problems[level][2][index]);
+  if(lights1 && lights2 && lights3){ 
+    level++;
+    addScore(10);
+    if(level >= G.LEVELS){
+      color("white");
+      rect(0, 0, G.WIDTH, G.HEIGHT);
+      end("Congratz!");
+    }
+  }
+
+  if(level < G.LEVELS){
+    problems[level].forEach( (row, index) => {
+      row.forEach((val, ind) => { 
+        if(val === 0){
+          color("black");
+          rect(35 + 6*ind, 5 + index*5, 6, 6);
+        } else {
+          color("light_cyan");
+          rect(35 + 6*ind, 5 + index*5, 6, 6);
+        }
+      });
+    });
+  }
+
   // track player pointer and clamp to game
   cursor.pos = vec(input.pos.x, input.pos.y);
   cursor.pos.clamp(0, G.WIDTH, 0, G.HEIGHT);
@@ -114,22 +183,32 @@ function update() {
   box(cursor.pos, 2);
   
   if(input.isJustPressed && ( box(cursor.pos, 2).isColliding.rect.black || box(cursor.pos, 2).isColliding.rect.cyan ) ){
-    console.log("Clicked a White Square");
     // hard index the adjacent blocks
     findBlock(input.pos);
-    console.log("Row " + clicked[0]);
-    console.log("Col " + clicked[1]);
     //console.log(tiles[clicked[0]][clicked[1]].pos);
     let currBlock = tiles[clicked[0]][clicked[1]];
     currBlock.lit = !currBlock.lit;
     // update the currenlyLit array and light adjacent blocks
     updateCurrent(clicked[0], clicked[1], currBlock.lit);
     lightAdjacent(clicked[0], clicked[1]);
-    console.log(currentlyLit);
-    console.log(problems);
   }
-  // end condition here
 
+  // reset button (reset the blocks)
+  if(input.isJustPressed && (box(cursor.pos, 2).isColliding.rect.light_purple || box(cursor.pos, 2).isColliding.rect.light_red )){
+    tiles.forEach( (row) =>{
+      row.forEach((block) => {
+        block.lit = false;
+        color("black");
+        rect(block.pos, block.width, block.width);
+      });
+    });
+    --resets;
+    if(resets < 0){
+      color("white");
+      rect(0, 0, G.WIDTH, G.HEIGHT);
+      end("You Gave Up");
+    }
+  }
 }
 // find adjacent blocks and light or unlight them
 function lightAdjacent(x, y){
@@ -185,6 +264,7 @@ function findBlock(pointer){
   else { 
     clicked[0] = 1;  }
 }
+
 /*
   CURRENT END GAME IDEA:
     have 2 arrays; first -> "current" is the currently lit blocks lights on denoted by a 1
@@ -192,5 +272,5 @@ function findBlock(pointer){
       pick a random index from problems on load and check currentlyLit against that to see if it was solved!
       -- if we want instead of end we keep score and end when they solve X puzzles
 
-  100% SOLVABLE IN OUR GAME: T, L,  Z but sideways, I,  smol Z, Y, all on?, Border
+  100% SOLVABLE IN OUR GAME: T, L, Z but sideways, I,  H, Y, all on?, Border
 */
