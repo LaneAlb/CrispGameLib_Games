@@ -8,10 +8,10 @@ Sweeping increases stone speed.
 characters = [
 ` 
  LLLL 
-LLLLLL
-LLLLLL
-LLLLLL
-LLLLLL
+LLCCLL
+LCCCCL
+LCCCCL
+LLCCLL
  LLLL
 `,
 ` 
@@ -29,20 +29,20 @@ const G = {
   HEIGHT: 80,
   
   PUCKVERT: 1,
-  PUCKPOSMAX: 70,
-  PUCKPOSMIN: 10,
+  PUCKPOSMAX: 67,
+  PUCKPOSMIN: 13,
   
   PUCKANGLE: 0.01,
   DIRLENGTH: 25,
   PUCKANGLEMAX: Math.PI/4,
   PUCKANGLEMIN: -Math.PI/4,
 
-  PUCKSPEEDMAX: 10,
-  PUCKSPEEDMIN: 1, // set to 1 because we dont want player to set launch speed to 0
+  PUCKSPEEDMAX: 2,
+  PUCKSPEEDMIN: 1,
 
-  SWEEP: 0.00625,  // FRICTION SLOWS PLAYER
-  DECAY:    0,    // NATURAL SPEED DECAY
-  DECAYMAX: 0.025,
+  PUCKDECCELERATION: 0.002,
+
+  PARADIST: 100,
 }
 // PUCK VERT is the speed the Puck moves up and down in vertical selection
 // PUCK ANGLE is the speed the angle moves up and down in angle selection
@@ -66,7 +66,9 @@ const STATE = {
  * sprite: string,
  * target: Vector,
  * lives: number,
- * travelled: number
+ * trueX: number,
+ * scrubbing: boolean,
+ * receivedScore: boolean,
  * }} Puck
  */
 // Reverse is to reverse the direction of movement in Angle/Vertical selection
@@ -76,6 +78,34 @@ const STATE = {
  * @type { Puck }
  */
 let puck;
+
+/**
+ * @typedef {{
+ * trueX: number
+ * y: number
+ * radius: number
+ * }} paraObj
+ */
+
+/**
+ * @type { paraObj []}
+ */
+let objects;
+
+
+/**
+ * @typedef {{
+ * trueX: number
+ * y: number
+ * innerRadius: number
+ * outerRadius: number
+ * }} targetObj
+ */
+
+/**
+ * @type { targetObj }
+ */
+let target;
 
 /**
  * @typedef {{
@@ -91,40 +121,34 @@ let puck;
  */
 let scores;
 
-/**
- * @typedef {{ 
- * pos: Vector,
- * speed: number,
- * }} Obstacles
- */
-/**
- * @type { Obstacles [] }
- * 
- */
-let obstacles;
-let distance, maxDistance;
-let targetCenter;
-let background;
-
 options = {
   viewSize: {x: G.WIDTH, y: G.HEIGHT},
-  seed: 5,
-  isPlayingBgm: true,
+  //seed: 3,
+  //isPlayingBgm: true,
   isReplayEnabled: true,
   theme: "shape"
 };
 
 function update() {
   if (!ticks) {
-    // background effects
-    background = times(3, () => {
+    let x = 50;
+    objects = times(rndi(5, 10), () => {
+      let y = rndi(13, 67)
+      x += rndi(60,120)
       return {
-        pos: vec(G.WIDTH, rnd(G.PUCKPOSMIN + 1, G.PUCKPOSMAX - 1)),
-        speed:  1,
-        width: rndi(25, 75),
-        height: 1,
+        trueX: x,
+        y: y,
+        radius: 3,
       }
     });
+
+    target = {
+      trueX: x + 100,
+      y: G.HEIGHT/2,
+      innerRadius: 14,
+      outerRadius: 28
+    }
+    
     scores = [];
     puck = {
       pos: vec(10, G.HEIGHT / 2),
@@ -135,55 +159,51 @@ function update() {
       sprite: "a",
       target: vec(10, G.HEIGHT / 2),
       lives: 3,
-      travelled: 0,
+      trueX: 10,
+      scrubbing: false,
+      receivedScore: false,
     }
-    obstacles = times(2, () => {
-      return { 
-        pos: vec(G.WIDTH, G.PUCKPOSMIN),
-        speed: 0,
-      };
-    });
-    distance = rndi(20, 80);
-    maxDistance = distance;
-    targetCenter = {pos: vec(G.WIDTH, G.HEIGHT/2)};
   }
-  // background lines
-  if(puck.state === STATE.FREE || puck.state === STATE.RESET){
-    color('light_black');
-    background.forEach(ele => {
-      rect(ele.pos, ele.width, ele.height);
-      ele.pos.x -= puck.speed;
-      if(ele.pos.x + ele.width < 0){ 
-        ele.pos.x = G.WIDTH; 
-      }
-    });
-  }
-  // DRAW TARGET
-  if(maxDistance - puck.travelled < 10){
-    color("light_red");
-    arc(targetCenter.pos, 14, 4, 0, 2*PI );
-    color("light_blue");
-    arc(targetCenter.pos, 28, 8, 0, 2*PI );
-    if(floor(ticks/(15)) === ticks/(15)) targetCenter.pos.x -= puck.speed/2;
-  }
-
-  // draw puck
-  color('black')
-  char("a", puck.pos);
 
   // WALLS
   color('light_cyan');
   rect(0, 0, G.WIDTH, G.PUCKPOSMIN - 3);
   rect(0, G.PUCKPOSMAX + 3, G.WIDTH, G.HEIGHT - G.PUCKPOSMAX - 3);
 
-  // UPDATE OBJECT INFOS DEPENDING ON STATE
-  color("white");
-  // distance and speed text
-  text(distance.toString() + "m", 3, G.HEIGHT - 4);
-  text(floor(puck.speed) + "m/s", G.WIDTH - 30, G.HEIGHT - 4);
-  // shots left text
-  text("Shots: " + puck.lives, G.WIDTH/2 - 25, 3);
-  color("light_black");
+  //draw target
+  let relativeX = target.trueX - puck.trueX 
+  if (relativeX - target.outerRadius <= G.WIDTH - G.PARADIST){
+    color("light_red");
+    arc(vec(G.PARADIST + relativeX, target.y), target.outerRadius, 6, 0, 2 * PI);
+    color("light_blue");
+    arc(vec(G.PARADIST + relativeX, target.y), target.innerRadius, 3, 0, 2 * PI);
+  }
+
+  // draw puck
+  color('black');
+  let puckColl = char("a", puck.pos).isColliding;
+
+  color("black");
+  remove(objects, (o) => {
+    let relativeX = o.trueX - puck.trueX 
+    let disappear = (G.PARADIST + relativeX <= 0 - o.radius);
+    if (relativeX - o.radius <= G.WIDTH - G.PARADIST){
+      var collider = char("b", G.PARADIST + relativeX, o.y).isColliding;
+      if (!disappear) { 
+        disappear = collider.char.a;
+        if (collider.char.a) { puck.speed -= 0.2; } 
+      }
+    }
+    return disappear;
+  });
+
+  color("transparent");
+  let scrubCollider = rect(input.pos, 4).isColliding.char.a;
+
+  color("black");
+  text(`SHOTS LEFT: ${puck.lives}`, vec(G.WIDTH/2 - 37, 4));
+
+  text(`DIST: ${floor(10 * (target.trueX - puck.trueX)/60)/10}m`, 5, G.HEIGHT - 5);
 
   switch (puck.state) {
     case STATE.POSITION:
@@ -199,30 +219,31 @@ function update() {
       if (input.isJustPressed) {
         // do set position
         // switch to STATE.ANGLE
-        puck.state = STATE.ANGLE
+        puck.lives--;
+        puck.state = STATE.ANGLE;
       }
       break;
     case STATE.ANGLE:
       // Change angle up and down, reverse when hit edge
       // Draw line forecasting direction of current angle
       if (puck.reverse) {
-        puck.angle += G.PUCKANGLE 
+        puck.angle += G.PUCKANGLE;
       } else {
-        puck.angle -= G.PUCKANGLE
+        puck.angle -= G.PUCKANGLE;
       }
       puck.target.x = puck.pos.x + Math.cos(puck.angle)*G.DIRLENGTH;
       puck.target.y = puck.pos.y + Math.sin(puck.angle)*G.DIRLENGTH;
       color("light_black");
-      line(puck.pos, puck.target, 1)
+      line(puck.pos, puck.target, 1);
       if (puck.angle > G.PUCKANGLEMAX || puck.angle < G.PUCKANGLEMIN || puck.target.y > G.PUCKPOSMAX+3 || puck.target.y < G.PUCKPOSMIN-3){
-        puck.reverse = !puck.reverse
+        puck.reverse = !puck.reverse;
       }
       if (input.isJustPressed) {
         // angle setup already from above
         // reset puck.reverse for use in STATE.POWER
         puck.reverse = true;
         // switch to STATE.POWER
-        puck.state = STATE.POWER
+        puck.state = STATE.POWER;
       }
     break;
     case STATE.POWER:
@@ -231,18 +252,18 @@ function update() {
       // DRAW Background of our Power Bar for visual indication of a "MAX"\
       // and red powerbar
       color("light_black");
-      rect((G.WIDTH - G.PUCKSPEEDMAX*10)/2, G.HEIGHT - 6, G.PUCKSPEEDMAX * 10, 5);
+      rect(G.WIDTH/2 - 20, G.HEIGHT - 6, 40, 5);
       color("light_red");
-      rect((G.WIDTH - G.PUCKSPEEDMAX*10)/2, G.HEIGHT - 6, puck.speed * 10, 5);
+      rect(G.WIDTH/2 - 20, G.HEIGHT - 6, (puck.speed - G.PUCKSPEEDMIN)/(G.PUCKSPEEDMAX - G.PUCKSPEEDMIN) * 40, 5);
       // reuse our reverse logic for STATE.ANGLE, 
       // determines power bar growth && puck.speed value from 0 - 100
       if(floor(ticks/15) == ticks/15) {
         if(puck.reverse) {
-          puck.speed += 1;
+          puck.speed += 0.1;
         } else {
-          puck.speed -= 1;
+          puck.speed -= 0.1;
         }
-        if(puck.speed >= G.PUCKSPEEDMAX || puck.speed <= G.PUCKSPEEDMIN){
+        if(puck.speed >= G.PUCKSPEEDMAX || puck.speed <= G.PUCKSPEEDMIN) {
           puck.reverse = !puck.reverse;
         }
       }
@@ -253,128 +274,112 @@ function update() {
       }
     break;
     case STATE.FREE:
-      // do we want to redraw the power bar here?
-      // this is WICKED FAST [ TEMP FIX divide puck.speed ]
-      puck.target.x = Math.cos(puck.angle)* (puck.speed/10);
-      puck.target.y = Math.sin(puck.angle)* (puck.speed/10);
-      // POSSIBLE PARALLAX EFFECT IF WE WANT A LANE LONGER THAN 200 PIXELS
-      if (puck.pos.x + puck.target.x <= G.WIDTH/4){
-        puck.pos.x += puck.target.x;
-      } else { // Parallax Effects
-        // update player speed based on "sweeping"
-        // if SWEEP increase FRICTION
-        // reminder: G.FRICTION is the lack thereof
-        if(input.isJustPressed) { 
-          color("light_black");
-          particle(input.pos, 5);
-          if(G.DECAY > 0) G.DECAY -= G.SWEEP;
-        } else if(floor(ticks/(30)) === ticks/(30))
-        {
-            if(G.DECAY < G.DECAYMAX) G.DECAY += G.SWEEP;
-        }
-        // BAR GRAPH of FRICTION
+      color("black");
+      text(`${floor(puck.speed * 100)/100}m/s`, vec(G.WIDTH - 45, G.HEIGHT - 5));
+      
+      if (floor(ticks/30) == ticks/30) puck.scrubbing = false;
+
+      //dont deccelerate if scrubbing
+      if (input.isJustPressed && scrubCollider) {
+        puck.scrubbing = true;
+        //particle effect to show scrubbing
         color("light_black");
-        rect((G.WIDTH - 50)/2, G.HEIGHT - 6, G.DECAYMAX * 2000, 5);
-        color("light_red");
-        rect((G.WIDTH - 50)/2, G.HEIGHT - 6, clamp(0, G.DECAY * 2000), 5);
-        
-        puck.speed -= (G.DECAY); // FRICTION REDUCE DECAY DOWN TO 0
-        //update distance 4 times a secs
-        if(floor(ticks/(15)) === ticks/(15)) {
-          distance -= (floor(puck.speed)/4);
-          puck.travelled += (floor(puck.speed)/4);
-        }
+        particle(input.pos, 8);
+      }
 
-        // draw the enemy pucks
-        obstacles.forEach(o => {
-          color("black"); //if(rnd(1, 2) > 1) color("light_yellow"); else color("light_green");
-          char('b', o.pos);
-          o.pos.x -= puck.speed/10;
-          if(o.pos.x < 0){
-            o.pos = vec(G.WIDTH, rnd(G.PUCKPOSMIN, G.PUCKPOSMAX));
-          }
-        });
-
-        if(char("a", puck.pos).isColliding.char.b || puck.speed <= 0.5 || targetCenter.pos.x + 8 < 0){
-          // go to scoring
+      if (!puck.scrubbing) {
+        //deccelerate
+        if (puck.speed > 0) {
+          puck.speed -= G.PUCKDECCELERATION;
+        } else {
           puck.speed = 0;
           puck.state = STATE.RESET;
-        } //else { console.log(puck.speed); }
+        }
       }
-      puck.pos.y += puck.target.y;
-      // check if Collide with Cyan Rect (our wall)
-      color("light_cyan");
-      if(char("a", puck.pos).isColliding.rect.light_cyan){
 
+      puck.target.x = Math.cos(puck.angle)* (puck.speed);
+      puck.target.y = Math.sin(puck.angle)* (puck.speed);
+      // POSSIBLE PARALLAX EFFECT IF WE WANT A LANE LONGER THAN 200 PIXELS
+      puck.pos.y += puck.target.y;
+      puck.trueX += puck.target.x;
+      if (puck.pos.x + puck.target.x <= G.PARADIST){
+        puck.pos.x += puck.target.x;
+      } else { 
+        // Parallax Effects
+      }
+      
+      if (puckColl.rect.light_cyan){
         // change angle direction
         puck.angle = -puck.angle;
-
-        // bottom collision
-        if (puck.pos.y > G.HEIGHT / 2) {
-          puck.pos = vec(puck.pos.x, G.PUCKPOSMAX - 3);
-        }
-        
-        // top collision
-        if (puck.pos.y < G.HEIGHT / 2) {
-          puck.pos = vec(puck.pos.x, G.PUCKPOSMIN + 3);
+        if (puck.pos.y >= G.HEIGHT/2){
+          puck.pos.y = G.PUCKPOSMAX;
+        } else {
+          puck.pos.y = G.PUCKPOSMIN;
         }
       }
     break;
     case STATE.RESET:
-      console.log("Travel: " + puck.travelled);
-      // redraw our puck
-      color("light_cyan");
-      char('a', puck.pos);
-      // redraw our target
-      if(targetCenter.pos.x < G.WIDTH) { 
-        color("light_red");
-        arc(targetCenter.pos, 14, 4, 0, 2*PI );
-        color("light_blue");
-        arc(targetCenter.pos, 28, 8, 0, 2*PI );
+      //calculate score
+      if (!puck.receivedScore) {
+        let relativeX = target.trueX - puck.trueX;
+        //if target is on screen
+        if (relativeX - target.outerRadius <= G.WIDTH - G.PARADIST) {
+          let targetCenter = vec(G.PARADIST + relativeX, target.y);
+          let distance = puck.pos.distanceTo(targetCenter);
+          let score = 500 - distance - (floor(distance/target.innerRadius) * distance);
+          if ((floor(distance/target.innerRadius) == 0)) { myAddScore(score * 2); } else { myAddScore(score); }
+          //100 - distance - (floor(distance/innerRadius) * distance) - (floor(distance/outerRadius) * distance)
+            //inner radius gets 2x multiplier
+          }
+          puck.receivedScore = true;
       }
-      // draw the enemy pucks
-      obstacles.forEach(o => {
-        color("black"); //if(rnd(1, 2) > 1) color("light_yellow"); else color("light_green");
-        char('b', o.pos);
-      });
+      //wait for player to click for next shot if they have lives left
       color("black");
-      text("CLICK FOR NEXT SHOT", vec(G.WIDTH/4, G.HEIGHT/2));
-      if(input.isJustPressed){
-        if( (targetCenter.pos.x > 0 && targetCenter.pos.x < G.WIDTH) && puck.speed <= 0){
-          addScore(distance * 10);
-        }
-        // reset and remove a "life"
-        if(--puck.lives < 0) end();
-
-        // reset all puck values
-        puck.travelled = 0;
+      if (puck.lives > 0) {
+        text("CLICK FOR NEXT SHOT", G.WIDTH/2 - 50, G.HEIGHT/2);
+      } else {
+        end("YOU FINISHED!!");
+      }
+      if (input.isJustPressed) {
+        //reset puck values
+        puck.pos = vec(10, G.HEIGHT / 2);
+        puck.target = vec(10, G.HEIGHT / 2);
         puck.speed = 1;
         puck.angle = 0;
         puck.reverse = false;
-        puck.pos = vec(10, G.HEIGHT / 2);
-        puck.target = vec(10, G.HEIGHT / 2);
-        // reset obstacles
-        obstacles = times(2, () => {
-          return { 
-            pos: vec(G.WIDTH, G.PUCKPOSMIN),
-            speed: 0,
-          };
+        puck.trueX = 10;
+        puck.scrubbing = false;
+        puck.receivedScore = false;
+        
+        //empty and repopulate objects array
+        objects = [];
+        let x = 50;
+        objects = times(rndi(5, 10), () => {
+          let y = rndi(13, 67)
+          x += rndi(60,120)
+          return {
+            trueX: x,
+            y: y,
+            radius: 3,
+          }
         });
-        // reset target and distance
-        targetCenter = {pos: vec(G.WIDTH, G.HEIGHT/2)};
-        distance = rndi(15, 45); // 15 or 50m
-        maxDistance = distance;
+
+        //reset target value
+        target.trueX = x + 100;
+
+        //change to position state
         puck.state = STATE.POSITION;
-      }      
+      }
     break;
   }
   // Floating Scores
   remove(scores, (s) => {
-    s.pos.y -= 0.1
-    text("+" + s.score, s.pos)
+    // color(s.color)
+    s.pos.y -= 0.1;
+    text("+" + floor(s.score), s.pos);
     s.age -= 1
-    let disappear = (s.age <= 0)
-    return disappear
+    let disappear = (s.age <= 0);
+    return disappear;
   })
 }
 
@@ -385,6 +390,6 @@ function myAddScore(value, x = G.WIDTH/2, y = G.HEIGHT/2, color = "black", time 
     score: value,
     color: color
   }
-  scores.push(score)
+  scores.push(score);
   addScore(value);
 }
