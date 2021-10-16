@@ -28,7 +28,7 @@ const G = {
   PUCKANGLEMAX: Math.PI/4,
   PUCKANGLEMIN: -Math.PI/4,
 
-  PUCKSPEEDMAX: 100,
+  PUCKSPEEDMAX: 25,
   PUCKSPEEDMIN: 1, // set to 1 because we dont want player to set launch speed to 0
 }
 // PUCK VERT is the speed the Puck moves up and down in vertical selection
@@ -101,10 +101,11 @@ function update() {
   char("a", puck.pos);
 
   color('light_cyan');
-  rect(0,G.PUCKPOSMAX+3,200,1)
-  rect(0,G.PUCKPOSMIN-3,200,-1)
+  rect(0, 0, G.WIDTH, G.PUCKPOSMIN - 3);
+  rect(0, G.PUCKPOSMAX + 3, G.WIDTH, G.HEIGHT - G.PUCKPOSMAX - 3);
   
   // UPDATE OBJECT INFOS DEPENDING ON STATE
+  text(puck.angle.toString(), 3, 10);
   switch (puck.state) {
     case STATE.POSITION:
       // MOVE UP & DOWN, REVERSE WHEN HIT EDGE
@@ -180,10 +181,19 @@ function update() {
       puck.pos.y += puck.target.y;
       // check if Collide with Cyan Rect (our wall)
       if(char("a", puck.pos).isColliding.rect.light_cyan){
-        if(puck.angle < 0)
-          puck.angle = 180 + puck.angle;
-        else 
-          puck.angle = 180 - puck.angle;
+
+        // change angle direction
+        puck.angle = -puck.angle;
+
+        // bottom collision
+        if (puck.pos.y > G.HEIGHT / 2) {
+          puck.pos = vec(puck.pos.x, G.PUCKPOSMAX - 3);
+        }
+        
+        // top collision
+        if (puck.pos.y < G.HEIGHT / 2) {
+          puck.pos = vec(puck.pos.x, G.PUCKPOSMIN + 3);
+        }
       }
       // Update Puck position in the direction it is currently moving
       if (input.isJustPressed) {
@@ -197,7 +207,7 @@ function update() {
   
   // Floating Scores
   remove(scores, (s) => {
-    color(s.color)
+    // color(s.color)
     s.pos.y -= 0.1
     text("+" + s.score, s.pos)
     s.age -= 1

@@ -30,7 +30,7 @@ const G = {
   HEIGHT: 200,
   Box_Width: 50,
   RESETS: 3,
-  LEVELS: 3,
+  LEVELS: 4,
 };
 
 options = {
@@ -39,6 +39,7 @@ options = {
   isPlayingBgm: true,
   seed: 25,
   theme: "shapeDark",
+  isDrawingParticleFront: true
 };
 /**
  * @typedef  { object } Block  - The Typescript object
@@ -191,10 +192,29 @@ function update() {
     // update the currenlyLit array and light adjacent blocks
     updateCurrent(clicked[0], clicked[1], currBlock.lit);
     lightAdjacent(clicked[0], clicked[1]);
+    //create particles
+    color("light_blue")
+    particle (
+      cursor.pos.x,
+      cursor.pos.y,
+      rnd (15 , 35),
+      rnd (2, 3),
+      0,
+      2 * PI
+    )
   }
 
   // reset button (reset the blocks)
   if(input.isJustPressed && (box(cursor.pos, 2).isColliding.rect.light_purple || box(cursor.pos, 2).isColliding.rect.light_red )){
+    color("purple")
+    particle (
+      cursor.pos.x,
+      cursor.pos.y,
+      6,
+      1.6,
+      PI/2,
+      PI
+    )
     tiles.forEach( (row) =>{
       row.forEach((block) => {
         block.lit = false;
