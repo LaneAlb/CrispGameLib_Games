@@ -349,6 +349,7 @@ function update() {
         // reset all puck values
         puck.travelled = 0;
         puck.speed = 1;
+        puck.angle = 0;
         puck.reverse = false;
         puck.pos = vec(10, G.HEIGHT / 2);
         puck.target = vec(10, G.HEIGHT / 2);
