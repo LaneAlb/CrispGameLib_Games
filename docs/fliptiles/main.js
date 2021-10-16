@@ -222,6 +222,10 @@ function update() {
         rect(block.pos, block.width, block.width);
       });
     });
+    // RESET CURRENTLY LIT
+    currentlyLit[0].forEach((val, index) => {currentlyLit[0][index] = 0;});
+    currentlyLit[1].forEach((val, index) => {currentlyLit[1][index] = 0;});
+    currentlyLit[2].forEach((val, index) => {currentlyLit[2][index] = 0;});
     --resets;
     if(resets < 0){
       color("white");

@@ -1,15 +1,24 @@
 title = "Curling";
 
 description = `
-curlingGame
+           [Tap] Sweep
+Sweeping increases stone speed.
 `;
 
 characters = [
-`
+` 
  LLLL 
 LLLLLL
 LLLLLL
 LLLLLL
+LLLLLL
+ LLLL
+`,
+` 
+ LLLL 
+LLLLLL
+LLRRLL
+LLRRLL
 LLLLLL
  LLLL
 `
@@ -28,8 +37,12 @@ const G = {
   PUCKANGLEMAX: Math.PI/4,
   PUCKANGLEMIN: -Math.PI/4,
 
-  PUCKSPEEDMAX: 25,
+  PUCKSPEEDMAX: 10,
   PUCKSPEEDMIN: 1, // set to 1 because we dont want player to set launch speed to 0
+
+  SWEEP: 0.00625,  // FRICTION SLOWS PLAYER
+  DECAY:    0,    // NATURAL SPEED DECAY
+  DECAYMAX: 0.025,
 }
 // PUCK VERT is the speed the Puck moves up and down in vertical selection
 // PUCK ANGLE is the speed the angle moves up and down in angle selection
@@ -39,7 +52,8 @@ const STATE = {
   POSITION: 0,
   ANGLE: 1,
   POWER: 2,
-  FREE: 3
+  FREE: 3,
+  RESET: 4
 }
 
 /**
@@ -50,7 +64,9 @@ const STATE = {
  * reverse: boolean,
  * state: number,
  * sprite: string,
- * target: Vector
+ * target: Vector,
+ * lives: number,
+ * travelled: number
  * }} Puck
  */
 // Reverse is to reverse the direction of movement in Angle/Vertical selection
@@ -75,17 +91,41 @@ let puck;
  */
 let scores;
 
+/**
+ * @typedef {{ 
+ * pos: Vector,
+ * speed: number,
+ * }} Obstacles
+ */
+/**
+ * @type { Obstacles [] }
+ * 
+ */
+let obstacles;
+let distance, maxDistance;
+let targetCenter;
+let background;
+
 options = {
   viewSize: {x: G.WIDTH, y: G.HEIGHT},
-  seed: 3,
+  seed: 5,
   isPlayingBgm: true,
   isReplayEnabled: true,
-  theme: "simple"
+  theme: "shape"
 };
 
 function update() {
   if (!ticks) {
-    scores = []
+    // background effects
+    background = times(3, () => {
+      return {
+        pos: vec(G.WIDTH, rnd(G.PUCKPOSMIN + 1, G.PUCKPOSMAX - 1)),
+        speed:  1,
+        width: rndi(25, 75),
+        height: 1,
+      }
+    });
+    scores = [];
     puck = {
       pos: vec(10, G.HEIGHT / 2),
       speed: 1,
@@ -94,18 +134,57 @@ function update() {
       state: STATE.POSITION,
       sprite: "a",
       target: vec(10, G.HEIGHT / 2),
+      lives: 3,
+      travelled: 0,
     }
+    obstacles = times(2, () => {
+      return { 
+        pos: vec(G.WIDTH, G.PUCKPOSMIN),
+        speed: 0,
+      };
+    });
+    distance = rndi(20, 80);
+    maxDistance = distance;
+    targetCenter = {pos: vec(G.WIDTH, G.HEIGHT/2)};
   }
-  // DRAW BACKGROUND
+  // background lines
+  if(puck.state === STATE.FREE || puck.state === STATE.RESET){
+    color('light_black');
+    background.forEach(ele => {
+      rect(ele.pos, ele.width, ele.height);
+      ele.pos.x -= puck.speed;
+      if(ele.pos.x + ele.width < 0){ 
+        ele.pos.x = G.WIDTH; 
+      }
+    });
+  }
+  // DRAW TARGET
+  if(maxDistance - puck.travelled < 10){
+    color("light_red");
+    arc(targetCenter.pos, 14, 4, 0, 2*PI );
+    color("light_blue");
+    arc(targetCenter.pos, 28, 8, 0, 2*PI );
+    if(floor(ticks/(15)) === ticks/(15)) targetCenter.pos.x -= puck.speed/2;
+  }
+
+  // draw puck
   color('black')
   char("a", puck.pos);
 
+  // WALLS
   color('light_cyan');
   rect(0, 0, G.WIDTH, G.PUCKPOSMIN - 3);
   rect(0, G.PUCKPOSMAX + 3, G.WIDTH, G.HEIGHT - G.PUCKPOSMAX - 3);
-  
+
   // UPDATE OBJECT INFOS DEPENDING ON STATE
-  text(puck.angle.toString(), 3, 10);
+  color("white");
+  // distance and speed text
+  text(distance.toString() + "m", 3, G.HEIGHT - 4);
+  text(floor(puck.speed) + "m/s", G.WIDTH - 30, G.HEIGHT - 4);
+  // shots left text
+  text("Shots: " + puck.lives, G.WIDTH/2 - 25, 3);
+  color("light_black");
+
   switch (puck.state) {
     case STATE.POSITION:
       // MOVE UP & DOWN, REVERSE WHEN HIT EDGE
@@ -113,7 +192,7 @@ function update() {
         puck.reverse = !puck.reverse;
       } 
       if (puck.reverse) {
-        puck.pos.y += G.PUCKVERT
+        puck.pos.y += G.PUCKVERT;
       } else {
         puck.pos.y -= G.PUCKVERT;
       }
@@ -133,6 +212,7 @@ function update() {
       }
       puck.target.x = puck.pos.x + Math.cos(puck.angle)*G.DIRLENGTH;
       puck.target.y = puck.pos.y + Math.sin(puck.angle)*G.DIRLENGTH;
+      color("light_black");
       line(puck.pos, puck.target, 1)
       if (puck.angle > G.PUCKANGLEMAX || puck.angle < G.PUCKANGLEMIN || puck.target.y > G.PUCKPOSMAX+3 || puck.target.y < G.PUCKPOSMIN-3){
         puck.reverse = !puck.reverse
@@ -148,26 +228,26 @@ function update() {
     case STATE.POWER:
       // Keep drawing direction line
       line(puck.pos, puck.target, 1);
-      // reuse our reverse logic for STATE.ANGLE, 
-      // determines power bar growth && puck.speed value from 0 - 100
-      if (puck.reverse) {
-        puck.speed += 1;
-      } else {
-        puck.speed -= 1;
-      }
       // DRAW Background of our Power Bar for visual indication of a "MAX"\
       // and red powerbar
       color("light_black");
-      rect((G.WIDTH - G.PUCKSPEEDMAX)/2, G.HEIGHT - 5, G.PUCKSPEEDMAX, 5);
+      rect((G.WIDTH - G.PUCKSPEEDMAX*10)/2, G.HEIGHT - 6, G.PUCKSPEEDMAX * 10, 5);
       color("light_red");
-      rect((G.WIDTH - G.PUCKSPEEDMAX)/2, G.HEIGHT - 5, puck.speed, 5);
-      if (puck.speed > G.PUCKSPEEDMAX || puck.speed <= G.PUCKSPEEDMIN){
-        puck.reverse = !puck.reverse;
+      rect((G.WIDTH - G.PUCKSPEEDMAX*10)/2, G.HEIGHT - 6, puck.speed * 10, 5);
+      // reuse our reverse logic for STATE.ANGLE, 
+      // determines power bar growth && puck.speed value from 0 - 100
+      if(floor(ticks/15) == ticks/15) {
+        if(puck.reverse) {
+          puck.speed += 1;
+        } else {
+          puck.speed -= 1;
+        }
+        if(puck.speed >= G.PUCKSPEEDMAX || puck.speed <= G.PUCKSPEEDMIN){
+          puck.reverse = !puck.reverse;
+        }
       }
-      // CHECK: Can I accidently set player speed to 0?
       if (input.isJustPressed) {
         // puck.speed is auto setup above!
-        console.log(puck.angle * 100);
         // switch to STATE.FREE
         puck.state = STATE.FREE;
       }
@@ -177,9 +257,53 @@ function update() {
       // this is WICKED FAST [ TEMP FIX divide puck.speed ]
       puck.target.x = Math.cos(puck.angle)* (puck.speed/10);
       puck.target.y = Math.sin(puck.angle)* (puck.speed/10);
-      puck.pos.x += puck.target.x;
+      // POSSIBLE PARALLAX EFFECT IF WE WANT A LANE LONGER THAN 200 PIXELS
+      if (puck.pos.x + puck.target.x <= G.WIDTH/4){
+        puck.pos.x += puck.target.x;
+      } else { // Parallax Effects
+        // update player speed based on "sweeping"
+        // if SWEEP increase FRICTION
+        // reminder: G.FRICTION is the lack thereof
+        if(input.isJustPressed) { 
+          color("light_black");
+          particle(input.pos, 5);
+          if(G.DECAY > 0) G.DECAY -= G.SWEEP;
+        } else if(floor(ticks/(30)) === ticks/(30))
+        {
+            if(G.DECAY < G.DECAYMAX) G.DECAY += G.SWEEP;
+        }
+        // BAR GRAPH of FRICTION
+        color("light_black");
+        rect((G.WIDTH - 50)/2, G.HEIGHT - 6, G.DECAYMAX * 2000, 5);
+        color("light_red");
+        rect((G.WIDTH - 50)/2, G.HEIGHT - 6, clamp(0, G.DECAY * 2000), 5);
+        
+        puck.speed -= (G.DECAY); // FRICTION REDUCE DECAY DOWN TO 0
+        //update distance 4 times a secs
+        if(floor(ticks/(15)) === ticks/(15)) {
+          distance -= (floor(puck.speed)/4);
+          puck.travelled += (floor(puck.speed)/4);
+        }
+
+        // draw the enemy pucks
+        obstacles.forEach(o => {
+          color("black"); //if(rnd(1, 2) > 1) color("light_yellow"); else color("light_green");
+          char('b', o.pos);
+          o.pos.x -= puck.speed/10;
+          if(o.pos.x < 0){
+            o.pos = vec(G.WIDTH, rnd(G.PUCKPOSMIN, G.PUCKPOSMAX));
+          }
+        });
+
+        if(char("a", puck.pos).isColliding.char.b || puck.speed <= 0.5 || targetCenter.pos.x + 8 < 0){
+          // go to scoring
+          puck.speed = 0;
+          puck.state = STATE.RESET;
+        } //else { console.log(puck.speed); }
+      }
       puck.pos.y += puck.target.y;
       // check if Collide with Cyan Rect (our wall)
+      color("light_cyan");
       if(char("a", puck.pos).isColliding.rect.light_cyan){
 
         // change angle direction
@@ -195,19 +319,56 @@ function update() {
           puck.pos = vec(puck.pos.x, G.PUCKPOSMIN + 3);
         }
       }
-      // Update Puck position in the direction it is currently moving
-      if (input.isJustPressed) {
-        // add melted ice object to array at input position
-        // our "sweeping"
+    break;
+    case STATE.RESET:
+      console.log("Travel: " + puck.travelled);
+      // redraw our puck
+      color("light_cyan");
+      char('a', puck.pos);
+      // redraw our target
+      if(targetCenter.pos.x < G.WIDTH) { 
+        color("light_red");
+        arc(targetCenter.pos, 14, 4, 0, 2*PI );
+        color("light_blue");
+        arc(targetCenter.pos, 28, 8, 0, 2*PI );
       }
+      // draw the enemy pucks
+      obstacles.forEach(o => {
+        color("black"); //if(rnd(1, 2) > 1) color("light_yellow"); else color("light_green");
+        char('b', o.pos);
+      });
+      color("black");
+      text("CLICK FOR NEXT SHOT", vec(G.WIDTH/4, G.HEIGHT/2));
+      if(input.isJustPressed){
+        if( (targetCenter.pos.x > 0 && targetCenter.pos.x < G.WIDTH) && puck.speed <= 0){
+          addScore(distance * 10);
+        }
+        // reset and remove a "life"
+        if(--puck.lives < 0) end();
+
+        // reset all puck values
+        puck.travelled = 0;
+        puck.speed = 1;
+        puck.reverse = false;
+        puck.pos = vec(10, G.HEIGHT / 2);
+        puck.target = vec(10, G.HEIGHT / 2);
+        // reset obstacles
+        obstacles = times(2, () => {
+          return { 
+            pos: vec(G.WIDTH, G.PUCKPOSMIN),
+            speed: 0,
+          };
+        });
+        // reset target and distance
+        targetCenter = {pos: vec(G.WIDTH, G.HEIGHT/2)};
+        distance = rndi(15, 45); // 15 or 50m
+        maxDistance = distance;
+        puck.state = STATE.POSITION;
+      }      
     break;
   }
-  
-  // DRAW UPDATED & PERSISTENT OBJECTS BELOW HERE
-  
   // Floating Scores
   remove(scores, (s) => {
-    // color(s.color)
     s.pos.y -= 0.1
     text("+" + s.score, s.pos)
     s.age -= 1
