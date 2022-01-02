@@ -7,6 +7,6 @@
 ### 3. [Curling]
 
 [CrispGameLib]: https://github.com/abagames/crisp-game-lib
-[Night Grazer]: https://lanealb-portfolio.github.io/CrispGameLib_Games/?StudioOneButton
-[Flip Tiles]: https://lanealb-portfolio.github.io/CrispGameLib_Games/?fliptiles
-[Curling]: https://lanealb-portfolio.github.io/CrispGameLib_Games/?Curling
+[Night Grazer]: https://lanealb.github.io/CrispGameLib_Games/?StudioOneButton
+[Flip Tiles]: https://lanealb.github.io/CrispGameLib_Games/?fliptiles
+[Curling]: https://lanealb.github.io/CrispGameLib_Games/?Curling
